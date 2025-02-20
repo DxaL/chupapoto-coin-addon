@@ -1,0 +1,8 @@
+## Interface: 100000
+## Title: ChupaPotoCoin
+## Author: Dxall
+## Version: 1.0
+## Notes: Addon para penalizar fallos en raid con monedas.
+## SavedVariables: CPC_SavedData
+
+ChupaPotoCoin.lua
