@@ -10,11 +10,11 @@ local SOUND_ALERT = 8959 -- Sonido de alerta básico
 
 -- Crear interfaz gráfica
 CPC.UIFrame = CreateFrame("Frame", "CPC_UIFrame", UIParent, "BasicFrameTemplateWithInset")
-CPC.UIFrame:SetSize(350, 400)
+CPC.UIFrame:SetSize(350, 500)
 CPC.UIFrame:SetPoint("CENTER")
 CPC.UIFrame.title = CPC.UIFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-CPC.UIFrame.title:SetPoint("TOP", 0, -10)
-CPC.UIFrame.title:SetText("ChupaPotoCoin Tracker")
+CPC.UIFrame.title:SetPoint("TOP", 0, -6)
+CPC.UIFrame.title:SetText("ChupaPotoCoin ")
 CPC.UIFrame:Hide()
 
 -- Hacer la interfaz movible
@@ -80,9 +80,9 @@ end)
 
 -- Botones para asignar monedas (alineados verticalmente al medio)
 local assignButton1 = CreateFrame("Button", nil, CPC.UIFrame, "GameMenuButtonTemplate")
-assignButton1:SetSize(120, 30)
+assignButton1:SetSize(150, 30)
 assignButton1:SetPoint("TOP", 0, -80)
-assignButton1:SetText("Asignar 1 Moneda")
+assignButton1:SetText("1 ChuPaPotoCoin")
 assignButton1:SetScript("OnClick", function()
     if selectedPlayer then
         CPC:AddPenalty(selectedPlayer, 1)
@@ -92,9 +92,9 @@ assignButton1:SetScript("OnClick", function()
 end)
 
 local assignButton2 = CreateFrame("Button", nil, CPC.UIFrame, "GameMenuButtonTemplate")
-assignButton2:SetSize(120, 30)
+assignButton2:SetSize(150, 30)
 assignButton2:SetPoint("TOP", 0, -120)
-assignButton2:SetText("Asignar 2 Monedas")
+assignButton2:SetText("2 ChupaPotoCoins")
 assignButton2:SetScript("OnClick", function()
     if selectedPlayer then
         CPC:AddPenalty(selectedPlayer, 2)
@@ -104,9 +104,9 @@ assignButton2:SetScript("OnClick", function()
 end)
 
 local assignButton3 = CreateFrame("Button", nil, CPC.UIFrame, "GameMenuButtonTemplate")
-assignButton3:SetSize(120, 30)
+assignButton3:SetSize(150, 30)
 assignButton3:SetPoint("TOP", 0, -160)
-assignButton3:SetText("Asignar 3 Monedas")
+assignButton3:SetText("3 ChuPaPotoCoins")
 assignButton3:SetScript("OnClick", function()
     if selectedPlayer then
         CPC:AddPenalty(selectedPlayer, 3)
@@ -117,7 +117,7 @@ end)
 
 -- Botón para reiniciar los puntos de hoy
 local resetButton = CreateFrame("Button", nil, CPC.UIFrame, "GameMenuButtonTemplate")
-resetButton:SetSize(120, 30)
+resetButton:SetSize(150, 30)
 resetButton:SetPoint("TOP", 0, -200)
 resetButton:SetText("Reiniciar Puntos de Hoy")
 resetButton:SetScript("OnClick", function()
@@ -143,7 +143,7 @@ resetButton:SetScript("OnClick", function()
 end)
 -- Crear ScrollFrame para la lista de jugadores
 CPC.ScrollFrame = CreateFrame("ScrollFrame", nil, CPC.UIFrame, "UIPanelScrollFrameTemplate")
-CPC.ScrollFrame:SetSize(320, 250)
+CPC.ScrollFrame:SetSize(285, 250)
 CPC.ScrollFrame:SetPoint("TOP", 0, -240)
 
 -- Crear un Frame para contener los textos dentro del ScrollFrame
@@ -234,13 +234,23 @@ function CPC:AddPenalty(player, amount)
     -- Registrar en historial
     table.insert(self.history, {date = self.today, player = player, amount = amount})
     
+    -- Calcular puntos restantes
+    local puntosRestantes = 6 - self.players[player]
+    
+    -- Construir el mensaje
+    local mensaje = player .. " ha ganado " .. amount .. " ChupaPotoCoin(s). "
+    if self.players[player] >= 6 then
+        mensaje = mensaje .. "¡Debe abandonar la raid! Ha acumulado 6 ChupaPotoCoins."
+    else
+        mensaje = mensaje .. "Le quedan " .. puntosRestantes .. " puntos antes de ser expulsado."
+    end
+    
     -- Notificar en banda
-    SendChatMessage(player .. " ha ganado " .. amount .. " ChupaPotoCoin(s)!", "RAID_WARNING")
+    SendChatMessage(mensaje, "RAID_WARNING")
     PlaySound(SOUND_ALERT, "Master")
     
-    -- Expulsar si llega a 6
+    -- Expulsar si alcanza o supera los 6 puntos
     if self.players[player] >= 6 then
-        SendChatMessage(player .. " debe abandonar la raid. Ha acumulado 6 ChupaPotoCoins!", "RAID_WARNING")
         UninviteUnit(player)
     end
     
@@ -251,6 +261,41 @@ end
 -- Comandos
 SLASH_CPC1 = "/cpc"
 SlashCmdList["CPC"] = function(msg)
+    -- Verificar si el mensaje es "/cpc reset all"
+    if msg:lower() == "reset all" then
+        -- Mostrar un mensaje de confirmación
+        StaticPopupDialogs["CPC_CONFIRM_RESET_ALL"] = {
+            text = "¿Estás seguro de que deseas reiniciar TODOS los puntos y el historial?",
+            button1 = "Sí",
+            button2 = "No",
+            OnAccept = function()
+                CPC.players = {}  -- Reiniciar puntos de hoy
+                CPC.history = {}  -- Borrar historial
+                CPC_SavedData.players = {}
+                CPC_SavedData.history = {}
+                print("Todos los puntos y el historial han sido reiniciados.")
+            end,
+            timeout = 0,
+            whileDead = true,
+            hideOnEscape = true,
+            preferredIndex = 3,  -- Evitar conflictos con otros diálogos
+        }
+        StaticPopup_Show("CPC_CONFIRM_RESET_ALL")
+        return
+    end
+
+    -- Verificar si el mensaje es "/cpc help"
+    if msg:lower() == "help" then
+        print("Comandos disponibles:")
+        print("|cff00ff00/cpc [jugador] [cantidad]|r: Asignar monedas a un jugador.")
+        print("|cff00ff00/cpcui|r: Mostrar/ocultar la interfaz.")
+        print("|cff00ff00/cpcreset [jugador]|r: Reiniciar los puntos de hoy de un jugador.")
+        print("|cff00ff00/cpc reset all|r: Reiniciar TODOS los puntos y el historial.")
+        print("|cff00ff00/cpc help|r: Mostrar esta lista de comandos.")
+        return
+    end
+
+    -- Si no es un comando especial, intentar asignar monedas
     local player, amount = msg:match("(%S+)%s+(%d+)")
     amount = tonumber(amount)
     if player and amount then
@@ -268,15 +313,6 @@ SlashCmdList["CPCUI"] = function()
         UpdateDropdown()  -- Actualizar la lista de jugadores
         UpdateUI()        -- Actualizar la lista de penalizaciones
         CPC.UIFrame:Show()
-    end
-end
-
-SLASH_CPCRESET1 = "/cpcreset"
-SlashCmdList["CPCRESET"] = function(msg)
-    if msg and msg ~= "" then
-        CPC:ResetToday(msg)
-    else
-        CPC:ResetToday()
     end
 end
 
