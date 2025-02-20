@@ -31,6 +31,10 @@ end)
 -- Dropdown para seleccionar jugador
 local playerDropdown = CreateFrame("Frame", "CPC_PlayerDropdown", CPC.UIFrame, "UIDropDownMenuTemplate")
 playerDropdown:SetPoint("TOPLEFT", 10, -30)
+playerDropdown:SetSize(150, 32)  -- Ajustar el tamaño del menú desplegable
+
+-- Ajustar la posición de la flecha de despliegue
+_G[playerDropdown:GetName() .. "Button"]:SetPoint("RIGHT", playerDropdown, "RIGHT", -10, 0)
 
 local selectedPlayer = nil
 local function UpdateDropdown()
@@ -118,24 +122,46 @@ resetButton:SetPoint("TOP", 0, -200)
 resetButton:SetText("Reiniciar Puntos de Hoy")
 resetButton:SetScript("OnClick", function()
     if selectedPlayer then
-        CPC:ResetToday(selectedPlayer)
-        SendChatMessage("Los puntos de hoy de " .. selectedPlayer .. " han sido reiniciados.", "RAID")
+        -- Mostrar un mensaje de confirmación
+        StaticPopupDialogs["CPC_CONFIRM_RESET"] = {
+            text = "¿Estás seguro de que deseas reiniciar los puntos de hoy de " .. selectedPlayer .. "?",
+            button1 = "Sí",
+            button2 = "No",
+            OnAccept = function()
+                CPC:ResetToday(selectedPlayer)
+                SendChatMessage("Los puntos de hoy de " .. selectedPlayer .. " han sido reiniciados.", "RAID")
+            end,
+            timeout = 0,
+            whileDead = true,
+            hideOnEscape = true,
+            preferredIndex = 3,  -- Evitar conflictos con otros diálogos
+        }
+        StaticPopup_Show("CPC_CONFIRM_RESET")
     else
         print("Selecciona un jugador.")
     end
 end)
+-- Crear ScrollFrame para la lista de jugadores
+CPC.ScrollFrame = CreateFrame("ScrollFrame", nil, CPC.UIFrame, "UIPanelScrollFrameTemplate")
+CPC.ScrollFrame:SetSize(320, 250)
+CPC.ScrollFrame:SetPoint("TOP", 0, -240)
 
--- Crear lista de jugadores
-CPC.UIList = CreateFrame("ScrollingMessageFrame", nil, CPC.UIFrame)
-CPC.UIList:SetSize(320, 250)
-CPC.UIList:SetPoint("TOP", 0, -240)
-CPC.UIList:SetFontObject("GameFontNormal")
-CPC.UIList:SetJustifyH("LEFT")
-CPC.UIList:SetFading(false)
-CPC.UIList:SetMaxLines(50)
+-- Crear un Frame para contener los textos dentro del ScrollFrame
+CPC.ScrollFrame.Content = CreateFrame("Frame", nil, CPC.ScrollFrame)
+CPC.ScrollFrame.Content:SetSize(320, 250)
+CPC.ScrollFrame:SetScrollChild(CPC.ScrollFrame.Content)
 
+-- Inicializar la tabla de líneas
+CPC.ScrollFrame.Content.lines = {}
+
+-- Función para actualizar la lista de jugadores
 local function UpdateUI()
-    CPC.UIList:Clear()
+    -- Limpiar el contenido anterior
+    for i = 1, #CPC.ScrollFrame.Content.lines do
+        CPC.ScrollFrame.Content.lines[i]:Hide()
+    end
+
+    local offset = 0
     for player, count in pairs(CPC.players) do
         local historical = 0
         for _, record in ipairs(CPC.history) do
@@ -143,8 +169,24 @@ local function UpdateUI()
                 historical = historical + record.amount
             end
         end
-        CPC.UIList:AddMessage(player .. " - Hoy: " .. count .. " - Histórico: " .. historical)
+
+        -- Crear o reutilizar una línea de texto
+        local line = CPC.ScrollFrame.Content.lines[offset + 1]
+        if not line then
+            line = CPC.ScrollFrame.Content:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+            line:SetPoint("TOPLEFT", 10, -20 * offset)
+            CPC.ScrollFrame.Content.lines[offset + 1] = line
+        end
+
+        -- Establecer el texto de la línea
+        line:SetText(player .. " - Hoy: " .. count .. " - Histórico: " .. historical)
+        line:Show()
+
+        offset = offset + 1
     end
+
+    -- Ajustar el tamaño del contenido del ScrollFrame
+    CPC.ScrollFrame.Content:SetHeight(20 * offset)
 end
 
 -- Cargar datos guardados
